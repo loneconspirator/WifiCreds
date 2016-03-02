@@ -2,20 +2,118 @@
  * WifiCreds.h
  * Mike McCracken
  * 
- * A library for managing wifi credentials on your ESP8266 project
+ * A library for managing wifi credentials on your ESP8266 project. 
+ * It will accept credentials via serial connection and store them in the EEPROM
  */
 
 #include "WifiCreds.h"
 #include "Arduino.h"
 #include <EEPROM.h>
+#include <ESP8266WiFi.h>
 
-// This just initialized the object and the EEPROM - send 0 to not init the EEPROM
-// This would mostly be used if WifiCred is the only thing using EEPROM
-void WifiCreds::begin(unsigned int eepromInit) {
-  // WifiCreds::_offset = 0;
-  if (eepromInit != 0)
-    EEPROM.begin(eepromInit);
+WifiCreds::WifiCreds() {
+  _init();
 }
+
+WifiCreds::WifiCreds(char *default_ssid, char *default_password){
+  _init();
+  for(int i=0; i<ssid_max_length; i++) {_ssid[i] = default_ssid[i];}
+  _ssid[ssid_max_length] = '\0';
+  for(int i=0; i<password_max_length; i++) {_password[i] = default_password[i];}
+  _password[password_max_length] = '\0';
+}
+
+WifiCreds::WifiCreds(const char *default_ssid, const char *default_password){
+  _init();
+  for(int i=0; i<ssid_max_length; i++) {_ssid[i] = default_ssid[i];}
+  _ssid[ssid_max_length] = '\0';
+  for(int i=0; i<password_max_length; i++) {_password[i] = default_password[i];}
+  _password[password_max_length] = '\0';
+}
+
+void WifiCreds::_init() {
+  _is_wifi_enabled = true;
+  _ssid[0] = '\0';
+  _password[0] = '\0';
+  _offset = 0;
+  _is_eeprom_init = false;
+  _verbose = true;
+  _is_connected = false;
+}
+
+void WifiCreds::init_eeprom(int eeprom_init, int offset) {
+  if (eeprom_init != 0)
+    EEPROM.begin(eeprom_init);
+  _offset = offset;
+  _is_eeprom_init = true;
+}
+
+bool WifiCreds::is_wifi_enabled() {
+  return _is_wifi_enabled;
+}
+void WifiCreds::disable_wifi() {
+  _is_wifi_enabled = false;
+}
+bool WifiCreds::is_connected() {
+  return _is_connected;
+}
+
+// WiFi WifiCreds::get_wifi_object() {
+//   if (_is_wifi_enabled)
+//     return WiFi;
+//   else
+//     return NULL;
+// }
+
+void WifiCreds::connect() {
+  connect(-1);
+}
+
+void WifiCreds::connect(int indicator_pin) {
+  if (!_is_eeprom_init)
+    EEPROM.begin(512);
+  read_ssid(_ssid);
+  read_password(_password);
+  if (_verbose) {
+    Serial.println("");
+    Serial.print("Initializing connection to "); Serial.println(_ssid);
+    Serial.println("Send \"ssid password\" to update credentials"); 
+    Serial.println("");
+  }
+  
+  WiFi.begin(_ssid, _password);
+  
+  while (_is_wifi_enabled && WiFi.status() != WL_CONNECTED) {
+    if(indicator_pin >= 0) digitalWrite(indicator_pin, LOW);
+    delay(5);
+    if(indicator_pin >= 0) digitalWrite(indicator_pin, HIGH);
+    if (Serial.available() > 0){
+      read_from_serial(_ssid, WifiCreds::ssid_max_length);
+      read_from_serial(_password, WifiCreds::password_max_length);
+      if (_verbose) {
+        Serial.println("");
+        Serial.println("Got new wifi credentials.");
+        Serial.print(" - SSID: "); Serial.println(_ssid);
+        Serial.print(" - Password: "); Serial.println(_password);
+      }
+      WifiCreds::write_credentials(_ssid, _password);
+      WiFi.begin(_ssid, _password);
+    }
+    delay(495);
+    if (_verbose) Serial.print(".");
+  }
+  if (_verbose) {
+    Serial.println(""); 
+    if (_is_wifi_enabled) {
+      Serial.println("WiFi connected");
+      Serial.print("IP address: "); Serial.println(WiFi.localIP());
+    } else {
+      Serial.println("Skipping wifi setup");
+    }
+  }
+  if (_is_wifi_enabled) _is_connected = true;;
+}
+
 
 // The offest for the memory block WifiCred uses (defaults to 0)
 // void WifiCreds::set_memory_position(unsigned int offset) {
@@ -26,30 +124,30 @@ void WifiCreds::begin(unsigned int eepromInit) {
 void WifiCreds::read_ssid(char *str) {
   if (EEPROM.read(_values_set_index) == _values_set_value)
     for (int i=0; i<ssid_max_length; i++)
-      str[i] = EEPROM.read(_ssid_index + i);
+      str[i] = EEPROM.read(_ssid_index + i + _offset);
 }
 
 // Check if the creds are saved in EEPROM and read them if so
 void WifiCreds::read_password(char *str) {
   if (EEPROM.read(_values_set_index) == _values_set_value)
     for (int i=0; i<password_max_length; i++)
-      str[i] = EEPROM.read(_pass_index + i);
+      str[i] = EEPROM.read(_pass_index + i + _offset);
 }
 
 void WifiCreds::write_credentials(char *ssid, char *password) {
   // Write the SSID into EEPROM
   for (int i=0; i<ssid_max_length; i++)
-    EEPROM.write(_ssid_index + i, ssid[i]);
+    EEPROM.write(_ssid_index + i + _offset, ssid[i]);
   // Write the password into EEPROM
   for (int i=0; i<password_max_length; i++)
-    EEPROM.write(_pass_index + i, password[i]);
+    EEPROM.write(_pass_index + i + _offset, password[i]);
   // Set the flag indicating the values are set
-  EEPROM.write(_values_set_index, _values_set_value);
+  EEPROM.write(_values_set_index + _offset, _values_set_value);
   EEPROM.commit();
 }
 
 void WifiCreds::clear_settings() {
-  EEPROM.write(_values_set_index, _values_set_value - 1);
+  EEPROM.write(_values_set_index + _offset, _values_set_value - 1);
 }
 
 void WifiCreds::read_from_serial(char *str, int max_len) {
