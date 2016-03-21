@@ -10,6 +10,7 @@
 #include "Arduino.h"
 #include <EEPROM.h>
 #include <ESP8266WiFi.h>
+#include <string.h>
 
 WifiCreds::WifiCreds() {
   _init();
@@ -39,6 +40,7 @@ void WifiCreds::_init() {
   _is_eeprom_init = false;
   _verbose = true;
   _is_connected = false;
+  strcpy (id,".  :  :  :  :  :  ");
 }
 
 void WifiCreds::init_eeprom(int eeprom_init, int offset) {
@@ -57,6 +59,8 @@ void WifiCreds::disable_wifi() {
 bool WifiCreds::is_connected() {
   return _is_connected;
 }
+
+char *WifiCreds::mac_id() {return id;}
 
 // WiFi WifiCreds::get_wifi_object() {
 //   if (_is_wifi_enabled)
@@ -107,6 +111,14 @@ void WifiCreds::connect(int indicator_pin) {
     if (_is_wifi_enabled) {
       Serial.println("WiFi connected");
       Serial.print("IP address: "); Serial.println(WiFi.localIP());
+      WiFi.macAddress(mac);
+      writeHex(mac[5], id, 1, 2);
+      writeHex(mac[4], id, 4, 5);
+      writeHex(mac[3], id, 7, 8);
+      writeHex(mac[2], id, 10, 11);
+      writeHex(mac[1], id, 13, 14);
+      writeHex(mac[0], id, 16, 17);
+      Serial.print("MAC address: "); Serial.println(id);
     } else {
       Serial.println("Skipping wifi setup");
     }
@@ -160,3 +172,19 @@ void WifiCreds::read_from_serial(char *str, int max_len) {
   }
   str[i] = '\0';
 }
+
+// Just some methods to help get a nice mac address string
+char WifiCreds::hexChar(byte val) {
+  if (val < 10)
+    return val + '0';
+  else
+    return (val - 10) + 'A';
+}
+
+void WifiCreds::writeHex(byte val, char *str, int pos1, int pos2) {
+  byte left = val / 16;
+  byte right = val - (left * 16);
+  str[pos1] = hexChar(left);
+  str[pos2] = hexChar(right);
+}
+

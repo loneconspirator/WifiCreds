@@ -69,6 +69,8 @@ class WifiCreds
     bool is_wifi_enabled();
     void disable_wifi();
     bool is_connected();
+    
+    char *mac_id();
   private:
     void _init();
     
@@ -93,6 +95,12 @@ class WifiCreds
     void read_from_serial(char *str, int max_len); // read a word into a char* - stop at \n, \r, \0 or ' '
     void write_credentials(char *ssid, char *password); // Write creds
     void clear_settings(); // Clear out our ssid & pass
+
+    byte mac[6];
+    char id[19];
+    
+    char hexChar(byte val);
+    void writeHex(byte val, char *str, int pos1, int pos2);
 };
 
 #endif
