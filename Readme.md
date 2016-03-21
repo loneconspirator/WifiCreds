@@ -68,18 +68,14 @@ Here's an example file you can start with once the library is installed (I haven
 
 
 #include <WifiCreds.h>
-#include "espconn.h"
 
 #include <ESP8266WiFi.h>
-#include <WiFi.h>
 
-#include <EEPROM.h>
-
-WifiCreds wifi("default_ssid", "default_password");
+WifiCreds wifi("officenomads", "PinkyX");
 
 // This is the pin of the blue LED on the huzzah which is for some reason backwards
 #define IND_PIN 2 // output pin with LED indicating Wifi is connecting
-#define BUTTON_PIN 2 // button that when connected to ground skips connecting to internet
+#define BUTTON_PIN 4 // button that when connected to ground skips connecting to internet
 
 void button() {
   if (wifi.is_wifi_enabled() && !wifi.is_connected())
@@ -103,5 +99,10 @@ void setup() {
     Serial.print("IP Address: ");
     Serial.println(ip);
   }
+}
+
+void loop() {
+  // put your main code here, to run repeatedly:
+
 }
 ```
