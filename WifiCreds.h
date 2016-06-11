@@ -71,6 +71,9 @@ class WifiCreds
     bool is_connected();
     
     char *mac_id();
+    
+    char *read_variable(int position, int max_length, char *default_value);
+    void write_variable(int position, int max_length, char *value);
   private:
     void _init();
     
@@ -97,7 +100,7 @@ class WifiCreds
     void clear_settings(); // Clear out our ssid & pass
 
     byte mac[6];
-    char id[19];
+    char id[20];
     
     char hexChar(byte val);
     void writeHex(byte val, char *str, int pos1, int pos2);

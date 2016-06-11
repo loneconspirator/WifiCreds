@@ -40,7 +40,7 @@ void WifiCreds::_init() {
   _is_eeprom_init = false;
   _verbose = true;
   _is_connected = false;
-  strcpy (id,".  :  :  :  :  :  ");
+  strcpy (id,".  :  :  :  :  :  \0");
 }
 
 void WifiCreds::init_eeprom(int eeprom_init, int offset) {
@@ -62,6 +62,23 @@ bool WifiCreds::is_connected() {
 
 char *WifiCreds::mac_id() {return id;}
 
+char *WifiCreds::read_variable(int position, int max_length, char *default_value){
+  if (EEPROM.read(position) == _values_set_value){
+    char *str = new char[max_length];
+    for (int i=0; i<max_length; i++)
+      str[i] = EEPROM.read(position + i + 1);
+    return str;
+  }else
+    return default_value;
+}
+void WifiCreds::write_variable(int position, int max_length, char *value){
+  for (int i=0; i<max_length; i++){
+    EEPROM.write(position + i + 1, value[i]);
+  }
+  EEPROM.write(position, _values_set_value);
+  EEPROM.commit();
+}
+
 // WiFi WifiCreds::get_wifi_object() {
 //   if (_is_wifi_enabled)
 //     return WiFi;
@@ -74,8 +91,10 @@ void WifiCreds::connect() {
 }
 
 void WifiCreds::connect(int indicator_pin) {
-  if (!_is_eeprom_init)
+  if (!_is_eeprom_init){
     EEPROM.begin(512);
+    _is_eeprom_init = true;
+  }
   read_ssid(_ssid);
   read_password(_password);
   if (_verbose) {
